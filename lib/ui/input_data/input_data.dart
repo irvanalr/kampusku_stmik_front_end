@@ -562,7 +562,7 @@ class _InputDataState extends State<InputData> {
         onEditingComplete: onEditingComplete,
         onChanged: onChanged,
         style: style,
-        cursorColor: Colors.black,
+        cursorColor: LightAndDarkMode.textColor1(context),
       ),
     );
   }

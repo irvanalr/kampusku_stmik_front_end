@@ -58,7 +58,7 @@ class ApiMain implements ApiServices {
   }
 
   @override
-  Future<http.Response> UpdateMahasiswa(String token, String nameParam, String name, String nama, String nomer_telephone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async {
+  Future<http.Response> UpdateMahasiswa(String token, String nameParam, String nama, String nomer_telephone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async {
     return await http.put(
       Uri.parse('$baseUrl/sessions/mahasiswa/$nameParam'),
       headers: <String, String>{

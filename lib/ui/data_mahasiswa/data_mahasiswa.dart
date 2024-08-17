@@ -4,6 +4,7 @@ import 'package:kampusku/models/data_mahasiswa_model.dart';
 import 'package:kampusku/utils/routes/route_paths.dart';
 import 'package:kampusku/utils/theme/light_and_dark.dart';
 import 'package:kampusku/viewmodels/data_mahasiswa_view_model.dart';
+import 'package:kampusku/viewmodels/delete_data_view_model.dart';
 import 'package:logger/logger.dart';
 
 class DataMahasiswa extends StatefulWidget {
@@ -15,6 +16,7 @@ class DataMahasiswa extends StatefulWidget {
 
 class _DataMahasiswaState extends State<DataMahasiswa> {
   final DataMahasiswaViewModel dataMahasiswaViewModel = DataMahasiswaViewModel();
+  final DeleteDataViewModel deleteDataViewModel = DeleteDataViewModel();
   final logger = Logger();
 
   Future<List<String>> listDataMahasiswa() async {
@@ -134,7 +136,7 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
     }
   }
 
-  void _showDeleteConfirmation(String mahasiswa) {
+  void _showDeleteConfirmation (String mahasiswa) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -195,8 +197,110 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
                   ),
                 ),
               ),
-              onPressed: () {
-                Navigator.of(context).pop();
+              onPressed: () async {
+                try {
+                  final result = await deleteDataViewModel.deleteData(mahasiswa);
+                  Map<String, dynamic> responseBody = result['responseBody'];
+                  int statusCode = result['statusCode'];
+
+                  if(statusCode == 200) {
+                    deleteDataViewModel.deleteDataModel.timeStamp = responseBody['timestamp'];
+                    deleteDataViewModel.deleteDataModel.status = responseBody['status'];
+                    deleteDataViewModel.deleteDataModel.message = responseBody['message'];
+
+                    Navigator.of(context).pop();
+                    Navigator.pushReplacementNamed(context, RoutePaths.dashboard);
+                  } else {
+                    deleteDataViewModel.deleteDataModel.timeStamp = responseBody['timestamp'];
+                    deleteDataViewModel.deleteDataModel.status = responseBody['status'];
+                    deleteDataViewModel.deleteDataModel.message = responseBody['message'];
+
+                    if(
+                      deleteDataViewModel.deleteDataModel.message == "SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!"
+                    ) {
+                      if (context.mounted) {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text(
+                                "INFORMASI",
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              content: Text(
+                                deleteDataViewModel.deleteDataModel.message,
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    'OK',
+                                    style: GoogleFonts.poppins(
+                                      textStyle: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: LightAndDarkMode.primaryColor(context),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    } else {
+                      throw Exception('Error selain 403 dengan message Username Atau Password salah silahkan coba lagi !!!');
+                    }
+                  }
+                } catch(error) {
+                  logger.e(error);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        key: const Key('AlertGetApiKey'),
+                        title: const Center(
+                          child: Text(
+                            "Perhatian",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        content: const Text(
+                          'SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!',
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Text(
+                              'OK',
+                              style: GoogleFonts.poppins(
+                                textStyle: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: LightAndDarkMode.primaryColor(context),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
               },
             ),
           ],
@@ -204,32 +308,6 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
       },
     );
   }
-
-  // final List<String> _mahasiswaList = [
-  //   'Irvan Al Rasyid',
-  //   'Adi Nugroho',
-  //   'Rina Andriani',
-  //   'Budi Santoso',
-  //   'Siti Nurhaliza',
-  //   'Teguh Prasetyo',
-  //   'Jane Sartika',
-  //   'Rizky Hidayat',
-  //   'Fitriani Rahayu',
-  //   'Agung Muhammad'
-  // ];
-
-  // Future<List<String>> _fetchData() async {
-  //   await Future.delayed(const Duration(seconds: 2));
-  //   return _mahasiswaList;
-  // }
-  //
-  // Future<void> _refreshData() async {
-  //   await Future.delayed(const Duration(seconds: 2));
-  //
-  //   setState(() {
-  //     _mahasiswaList.add('Mahasiswa Baru');
-  //   });
-  // }
 
   void _navigateToUpdateMahasiswa(String nama) {
     Navigator.pushNamed(

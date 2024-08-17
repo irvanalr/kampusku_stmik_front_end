@@ -33,4 +33,34 @@ class UpdateMahasiswaViewModel extends ChangeNotifier {
       throw Exception('Gagal Login, Silahkan coba lagi nanti !!!');
     }
   }
+
+  Future<Map<String, dynamic>> updateDataMahasiswa(
+      String nama,
+      String nomer_handphone,
+      String tanggal_lahir,
+      String jenis_kelamin,
+      String alamat,
+      String npm
+   ) async {
+    try {
+      final token = await loginViewModel.getValue(lgnTkn1, lgnTkn2);
+      final response = await apiServices.UpdateMahasiswa(
+        token,
+        updateMahasiswaModel.namaKirim,
+        nama,
+        nomer_handphone,
+        tanggal_lahir,
+        jenis_kelamin,
+        alamat,
+        npm
+      );
+      Map<String, dynamic> responseBody = jsonDecode(response.body);
+      return {
+        'statusCode': response.statusCode,
+        'responseBody': responseBody,
+      };
+    } catch (e) {
+      throw Exception('Gagal Login, Silahkan coba lagi nanti !!!');
+    }
+  }
 }
