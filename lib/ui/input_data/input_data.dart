@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:kampusku/utils/theme/light_and_dark.dart';
+import 'package:kampusku/viewmodels/input_data_view_model.dart';
+import 'package:logger/logger.dart';
 
 class InputData extends StatefulWidget {
   const InputData({super.key});
@@ -12,6 +14,8 @@ class InputData extends StatefulWidget {
 }
 
 class _InputDataState extends State<InputData> {
+  final InputDataViewModel inputDataViewModel = InputDataViewModel();
+  final logger = Logger();
   // Controllers
   TextEditingController _nameController = TextEditingController();
   TextEditingController _phoneController = TextEditingController();
@@ -20,7 +24,7 @@ class _InputDataState extends State<InputData> {
   TextEditingController _npmController = TextEditingController();
 
   // FocusNodes
-  FocusNode _nameFocusNode = FocusNode();
+  FocusNode _namaFocusNode = FocusNode();
   FocusNode _phoneFocusNode = FocusNode();
   FocusNode _dobFocusNode = FocusNode();
   FocusNode _addressFocusNode = FocusNode();
@@ -30,12 +34,12 @@ class _InputDataState extends State<InputData> {
   FocusNode _saveButtonFocusNode = FocusNode();
 
   DateTime _selectedDate = DateTime.now();
-  String _gender = 'Laki-laki';
 
   @override
   void dispose() {
+    super.dispose();
     // Dispose FocusNodes
-    _nameFocusNode.dispose();
+    _namaFocusNode.dispose();
     _phoneFocusNode.dispose();
     _dobFocusNode.dispose();
     _addressFocusNode.dispose();
@@ -43,8 +47,6 @@ class _InputDataState extends State<InputData> {
     _genderFocusNodeMale.dispose();
     _genderFocusNodeFemale.dispose();
     _saveButtonFocusNode.dispose();
-
-    super.dispose();
   }
 
   void _selectDate(BuildContext context) async {
@@ -57,17 +59,11 @@ class _InputDataState extends State<InputData> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
-        _dobController.text = DateFormat('dd/MM/yyyy').format(_selectedDate);
+        _dobController.text = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        inputDataViewModel.updateTanggalLahir(_dobController.text);
+        setState(() {});
       });
     }
-  }
-
-  bool _isFormValid() {
-    return _nameController.text.isNotEmpty &&
-        _phoneController.text.isNotEmpty &&
-        _dobController.text.isNotEmpty &&
-        _addressController.text.isNotEmpty &&
-        _npmController.text.isNotEmpty;
   }
 
   void _resetForm() {
@@ -76,9 +72,14 @@ class _InputDataState extends State<InputData> {
     _dobController.clear();
     _addressController.clear();
     _npmController.clear();
+    inputDataViewModel.inputDataModel.jenis_kelamin = 'Laki-laki';
+    inputDataViewModel.inputDataModel.isButtonEnabled = false;
     setState(() {
       _selectedDate = DateTime.now();
-      _gender = 'Laki-laki';
+    });
+    Future.delayed(Duration(milliseconds: 100), () {
+      FocusScope.of(context).requestFocus(_namaFocusNode);
+      FocusScope.of(context).unfocus();
     });
   }
 
@@ -93,20 +94,197 @@ class _InputDataState extends State<InputData> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _resetForm();
               },
-              child: Text('Ya'),
+              child: Text('Tidak'),
             ),
             TextButton(
               onPressed: () {
+                inputDataViewModel.inputDataMahasiswa().then((result) async {
+                  Map<String, dynamic> responseBody = result['responseBody'];
+                  int statusCode = result['statusCode'];
+
+                  if (statusCode == 200) {
+                    inputDataViewModel.inputDataModel.timeStamp = responseBody['timestamp'];
+                    inputDataViewModel.inputDataModel.status = responseBody['status'];
+                    inputDataViewModel.inputDataModel.message = responseBody['message'];
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text(
+                            "INFROMASI",
+                            style: GoogleFonts.poppins(
+                                textStyle: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold)),
+                            textAlign: TextAlign.center,
+                          ),
+                          content: Text(
+                            inputDataViewModel.inputDataModel.message,
+                            style: GoogleFonts.poppins(
+                              textStyle: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.normal),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () async {
+                                // Menampilkan CircularProgressIndicator
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (BuildContext context) {
+                                    return Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  },
+                                );
+
+                                // Memberikan waktu tunggu 1500 milidetik
+                                await Future.delayed(Duration(milliseconds: 1500));
+                                Navigator.of(context).pop();
+
+                                Navigator.of(context).pop();
+                                _resetForm();
+                              },
+                              child: Text(
+                                'OK',
+                                style: GoogleFonts.poppins(
+                                    textStyle: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: LightAndDarkMode.primaryColor(context)
+                                    )
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  } else {
+                    inputDataViewModel.inputDataModel.timeStamp = responseBody['timestamp'];
+                    inputDataViewModel.inputDataModel.status = responseBody['status'];
+                    inputDataViewModel.inputDataModel.message = responseBody['message'];
+
+                    if(
+                    inputDataViewModel.inputDataModel.message == "SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Nama tidak boleh berisikan kurang dari 3 kata !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Nomer Handphone minimal harus terdiri dari 12 angka !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Format Tanggal Lahir harus tahun-bulan-tanggal !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Jenis Kelamin di tolak, Masukan kata 'Laki-laki' atau 'Perempuan' !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Alamat minimal harus terdiri dari 5 kata !!!" ||
+                    inputDataViewModel.inputDataModel.message == "NPM minimal harus terdiri dari 8 karakter !!!" ||
+                    inputDataViewModel.inputDataModel.message == "Nama tidak boleh mengandung karakter backtick atau tanda dollar!" ||
+                    inputDataViewModel.inputDataModel.message == "Nomer Handphone tidak boleh mengandung karakter backtick atau tanda dollar!" ||
+                    inputDataViewModel.inputDataModel.message == "Tanggal Lahir tidak boleh mengandung karakter backtick atau tanda dollar!" ||
+                    inputDataViewModel.inputDataModel.message == "Jenis Kelamin tidak boleh mengandung karakter backtick atau tanda dollar!" ||
+                    inputDataViewModel.inputDataModel.message == "Alamat tidak boleh mengandung karakter backtick atau tanda dollar!" ||
+                    inputDataViewModel.inputDataModel.message == "NPM tidak boleh mengandung karakter backtick atau tanda dollar!"
+                    ) {
+                      if (context.mounted) {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text(
+                                "INFROMASI",
+                                style: GoogleFonts.poppins(
+                                    textStyle: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold)),
+                                textAlign: TextAlign.center,
+                              ),
+                              content: Text(
+                                inputDataViewModel.inputDataModel.message,
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.normal),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              actions: <Widget>[
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    'OK',
+                                    style: GoogleFonts.poppins(
+                                        textStyle: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: LightAndDarkMode.primaryColor(context)
+                                        )
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    } else {
+                      throw Exception('Error selain 403 dengan message Username Atau Password salah silahkan coba lagi !!!');
+                    }
+                  }
+                }).catchError((error) {
+                  logger.e(error);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        key: const Key('AlertGetApiKey'),
+                        title: const Center(
+                          child:Text(
+                            "Perhatian",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        content: const Text(
+                          'SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!',
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Text(
+                              'OK',
+                              style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: LightAndDarkMode.primaryColor(context)
+                                  )
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                });
                 Navigator.of(context).pop();
               },
-              child: Text('Tidak'),
+              child: Text('Ya'),
             ),
           ],
         );
       },
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
   }
 
   @override
@@ -142,31 +320,39 @@ class _InputDataState extends State<InputData> {
                     label: 'Nama',
                     icon: Icons.person,
                     controller: _nameController,
-                    focusNode: _nameFocusNode,
+                    focusNode: _namaFocusNode,
                     inputType: TextInputType.text,
                     onEditingComplete: () => FocusScope.of(context).requestFocus(_phoneFocusNode),
+                    onChanged: (value) => {
+                      inputDataViewModel.updateNama(value),
+                      setState(() {})
+                    },
                     style: GoogleFonts.poppins(
-                      textStyle: const TextStyle(
+                      textStyle: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.normal,
-                        color: Colors.white,
+                        color: LightAndDarkMode.textColor1(context),
                       ),
                     ),
                   ),
                 ),
                 _buildTextField(
-                  label: 'No.telp',
+                  label: 'No.handphone',
                   icon: Icons.phone,
                   controller: _phoneController,
                   focusNode: _phoneFocusNode,
                   inputType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onEditingComplete: () => FocusScope.of(context).requestFocus(_dobFocusNode),
+                  onChanged: (value) => {
+                    inputDataViewModel.updateNomerHandPhone(value),
+                    setState(() {})
+                  },
                   style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
-                      color: Colors.white,
+                      color: LightAndDarkMode.textColor1(context),
                     ),
                   ),
                 ),
@@ -180,10 +366,10 @@ class _InputDataState extends State<InputData> {
                   readOnly: true,
                   onEditingComplete: () => FocusScope.of(context).requestFocus(_genderFocusNodeMale),
                   style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
-                      color: Colors.white,
+                      color: LightAndDarkMode.textColor1(context),
                     ),
                   ),
                 ),
@@ -214,11 +400,10 @@ class _InputDataState extends State<InputData> {
                                 ),
                                 leading: Radio<String>(
                                   value: 'Laki-laki',
-                                  groupValue: _gender,
+                                  groupValue: inputDataViewModel.inputDataModel.jenis_kelamin,
                                   onChanged: (String? value) {
-                                    setState(() {
-                                      _gender = value!;
-                                    });
+                                    inputDataViewModel.updateJenisKelamin(value!);
+                                    setState(() {});
                                   },
                                 ),
                                 focusNode: _genderFocusNodeMale,
@@ -244,11 +429,10 @@ class _InputDataState extends State<InputData> {
                                 ),
                                 leading: Radio<String>(
                                   value: 'Perempuan',
-                                  groupValue: _gender,
+                                  groupValue: inputDataViewModel.inputDataModel.jenis_kelamin,
                                   onChanged: (String? value) {
-                                    setState(() {
-                                      _gender = value!;
-                                    });
+                                    inputDataViewModel.updateJenisKelamin(value!);
+                                    setState(() {});
                                   },
                                 ),
                                 focusNode: _genderFocusNodeFemale,
@@ -272,11 +456,15 @@ class _InputDataState extends State<InputData> {
                   focusNode: _addressFocusNode,
                   inputType: TextInputType.text,
                   onEditingComplete: () => FocusScope.of(context).requestFocus(_npmFocusNode),
+                  onChanged: (value) => {
+                    inputDataViewModel.updateAlamat(value),
+                    setState(() {})
+                  },
                   style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
-                      color: Colors.white,
+                      color: LightAndDarkMode.textColor1(context),
                     ),
                   ),
                 ),
@@ -288,11 +476,15 @@ class _InputDataState extends State<InputData> {
                   inputType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onEditingComplete: () => FocusScope.of(context).requestFocus(_saveButtonFocusNode),
+                  onChanged: (value) => {
+                    inputDataViewModel.updateNpm(value),
+                    setState(() {})
+                  },
                   style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
-                      color: Colors.white,
+                      color: LightAndDarkMode.textColor1(context),
                     ),
                   ),
                 ),
@@ -300,7 +492,7 @@ class _InputDataState extends State<InputData> {
                 Container(
                   width: MediaQuery.of(context).size.width * 0.9,
                   decoration: BoxDecoration(
-                    color: _isFormValid()
+                    color: inputDataViewModel.inputDataModel.isButtonEnabled
                         ? LightAndDarkMode.primaryColor(context)
                         : Colors.grey,
                   ),
@@ -310,14 +502,14 @@ class _InputDataState extends State<InputData> {
                         borderRadius: BorderRadius.zero,
                       ),
                     ),
-                    onPressed: _isFormValid() ? _showConfirmDialog : null,
+                    onPressed: inputDataViewModel.inputDataModel.isButtonEnabled ? _showConfirmDialog : null,
                     child: Text(
                       'Simpan',
                       style: GoogleFonts.poppins(
                         textStyle: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: _isFormValid() ? LightAndDarkMode.textColor2(context) : Colors.blueGrey,
+                          color: inputDataViewModel.inputDataModel.isButtonEnabled ? LightAndDarkMode.textColor2(context) : Colors.blueGrey,
                         ),
                       ),
                     ),
@@ -343,6 +535,7 @@ class _InputDataState extends State<InputData> {
     VoidCallback? onTap,
     bool readOnly = false,
     VoidCallback? onEditingComplete,
+    ValueChanged? onChanged,
   }) {
     return Container(
       width: MediaQuery.of(context).size.width * 0.9,
@@ -367,7 +560,9 @@ class _InputDataState extends State<InputData> {
           ),
         ),
         onEditingComplete: onEditingComplete,
+        onChanged: onChanged,
         style: style,
+        cursorColor: Colors.black,
       ),
     );
   }

@@ -99,7 +99,6 @@ class LoginViewModel extends ChangeNotifier {
           loginModel.password
       );
       Map<String, dynamic> responseBody = jsonDecode(response.body);
-      logger.i(responseBody);
 
       return {
         'statusCode': response.statusCode,

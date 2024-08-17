@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kampusku/ui/informasi_data_mahasiswa/informasi_data_mahasiswa.dart';
-import 'package:kampusku/ui/update_mahasiswa/update_mahasiswa.dart';
+import 'package:kampusku/models/data_mahasiswa_model.dart';
+import 'package:kampusku/utils/routes/route_paths.dart';
 import 'package:kampusku/utils/theme/light_and_dark.dart';
+import 'package:kampusku/viewmodels/data_mahasiswa_view_model.dart';
+import 'package:logger/logger.dart';
 
 class DataMahasiswa extends StatefulWidget {
   const DataMahasiswa({super.key});
@@ -12,30 +14,124 @@ class DataMahasiswa extends StatefulWidget {
 }
 
 class _DataMahasiswaState extends State<DataMahasiswa> {
-  final List<String> _mahasiswaList = [
-    'Irvan Al Rasyid',
-    'Adi Nugroho',
-    'Rina Andriani',
-    'Budi Santoso',
-    'Siti Nurhaliza',
-    'Teguh Prasetyo',
-    'Jane Sartika',
-    'Rizky Hidayat',
-    'Fitriani Rahayu',
-    'Agung Muhammad'
-  ];
+  final DataMahasiswaViewModel dataMahasiswaViewModel = DataMahasiswaViewModel();
+  final logger = Logger();
 
-  Future<List<String>> _fetchData() async {
-    await Future.delayed(const Duration(seconds: 2));
-    return _mahasiswaList;
-  }
+  Future<List<String>> listDataMahasiswa() async {
+    try {
+      final result = await dataMahasiswaViewModel.listDataMahasiswa();
+      final Map<String, dynamic> responseBody = result['responseBody'];
+      final int statusCode = result['statusCode'];
 
-  Future<void> _refreshData() async {
-    await Future.delayed(const Duration(seconds: 2));
+      if (statusCode == 200) {
+        final List<Data> data = (responseBody['data'] as List).map((data) {
+          return Data(
+            name: data['nama'],
+          );
+        }).toList();
 
-    setState(() {
-      _mahasiswaList.add('Mahasiswa Baru');
-    });
+        dataMahasiswaViewModel.dataMahasiswaModel.timeStamp = responseBody['timestamp'];
+        dataMahasiswaViewModel.dataMahasiswaModel.status = responseBody['status'];
+        dataMahasiswaViewModel.dataMahasiswaModel.message = responseBody['message'];
+        dataMahasiswaViewModel.dataMahasiswaModel.data = data;
+
+        return data.map((data) => data.name).toList();
+      } else {
+        dataMahasiswaViewModel.dataMahasiswaModel.timeStamp = responseBody['timestamp'];
+        dataMahasiswaViewModel.dataMahasiswaModel.status = responseBody['status'];
+        dataMahasiswaViewModel.dataMahasiswaModel.message = responseBody['message'];
+        if (dataMahasiswaViewModel.dataMahasiswaModel.message ==
+            "SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!") {
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(
+                    "INFROMASI",
+                    style: GoogleFonts.poppins(
+                        textStyle: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                    textAlign: TextAlign.center,
+                  ),
+                  content: Text(
+                    dataMahasiswaViewModel.dataMahasiswaModel.message,
+                    style: GoogleFonts.poppins(
+                      textStyle: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'OK',
+                        style: GoogleFonts.poppins(
+                            textStyle: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: LightAndDarkMode.primaryColor(context)
+                            )
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          }
+        } else {
+          throw Exception('Error selain 403 dengan message Username Atau Password salah silahkan coba lagi !!!');
+        }
+        // Return an empty list if status code is not 200 or there's an error
+        return [];
+      }
+    } catch (error) {
+      logger.e(error);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            key: const Key('AlertGetApiKey'),
+            title: const Center(
+              child: Text(
+                "Perhatian",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            content: const Text(
+              'SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                      textStyle: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: LightAndDarkMode.primaryColor(context)
+                      )
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      // Return an empty list in case of an exception
+      return [];
+    }
   }
 
   void _showDeleteConfirmation(String mahasiswa) {
@@ -100,7 +196,7 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
                 ),
               ),
               onPressed: () {
-                Navigator.of(context).pop(); // Tutup dialog tanpa melakukan aksi tambahan untuk saat ini
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -109,24 +205,58 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
     );
   }
 
-  void _navigateToUpdateMahasiswa() {
-    Navigator.push(
+  // final List<String> _mahasiswaList = [
+  //   'Irvan Al Rasyid',
+  //   'Adi Nugroho',
+  //   'Rina Andriani',
+  //   'Budi Santoso',
+  //   'Siti Nurhaliza',
+  //   'Teguh Prasetyo',
+  //   'Jane Sartika',
+  //   'Rizky Hidayat',
+  //   'Fitriani Rahayu',
+  //   'Agung Muhammad'
+  // ];
+
+  // Future<List<String>> _fetchData() async {
+  //   await Future.delayed(const Duration(seconds: 2));
+  //   return _mahasiswaList;
+  // }
+  //
+  // Future<void> _refreshData() async {
+  //   await Future.delayed(const Duration(seconds: 2));
+  //
+  //   setState(() {
+  //     _mahasiswaList.add('Mahasiswa Baru');
+  //   });
+  // }
+
+  void _navigateToUpdateMahasiswa(String nama) {
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(builder: (context) => const UpdateMahasiswa()),
+      RoutePaths.updateMahasiswa,
+      arguments: {'nama': nama},
     );
   }
 
-  void _navigateToInformasiDataMahasiswa() {
-    Navigator.push(
+  void _navigateToInformasiDataMahasiswa(String nama) {
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(builder: (context) => const InformasiDataMahasiswa()),
+      RoutePaths.informasiDataMahasiswa,
+      arguments: {'nama': nama},
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    listDataMahasiswa();
   }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: _refreshData,
+      onRefresh: listDataMahasiswa,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -142,13 +272,22 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
           centerTitle: true,
         ),
         body: FutureBuilder<List<String>>(
-          future: _fetchData(), // Mengambil data mahasiswa
+          future: Future.delayed(Duration(milliseconds: 1500), () => listDataMahasiswa()),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError) {
-              return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+              return Center(
+                  child: Text('Data kosong')
+              );
             } else if (snapshot.hasData) {
+
+              final mahasiswaList = snapshot.data ?? [];
+
+              if (mahasiswaList.isEmpty) {
+                return const Center(child: Text('Data kosong'));
+              }
+
               return Padding(
                 padding: const EdgeInsets.all(10.0),
                 child: Container(
@@ -181,11 +320,11 @@ class _DataMahasiswaState extends State<DataMahasiswa> {
                                     children: [
                                       IconButton(
                                         icon: Icon(Icons.info, color: Colors.green),
-                                        onPressed: _navigateToInformasiDataMahasiswa,
+                                        onPressed: () => _navigateToInformasiDataMahasiswa(mahasiswa),
                                       ),
                                       IconButton(
                                         icon: Icon(Icons.edit, color: Colors.blueAccent),
-                                        onPressed: _navigateToUpdateMahasiswa,
+                                        onPressed: () => _navigateToUpdateMahasiswa(mahasiswa),
                                       ),
                                       IconButton(
                                         icon: Icon(Icons.delete, color: Colors.red),

@@ -51,8 +51,8 @@ class _TextFieldLoginState extends State<TextFieldLogin> {
         loginViewModel.loginModel.status = responseBody['status'];
         loginViewModel.loginModel.message = responseBody['message'];
         if(
-        loginViewModel.loginModel.message == "Username dan Password salah !!!" ||
-            loginViewModel.loginModel.message == "Akun dinonaktifkan, Hubungi Operator kami untuk tindak selanjutnya !!!"
+        loginViewModel.loginModel.message == "email atau password anda salah !!!" ||
+            loginViewModel.loginModel.message == "SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!"
         ) {
           if (context.mounted) {
             showDialog(
@@ -242,7 +242,11 @@ class _TextFieldLoginState extends State<TextFieldLogin> {
                     loginViewModel.kataSandiVisible ? Icons.visibility : Icons.visibility_off,
                     color: Colors.black,
                   ),
-                  onPressed: loginViewModel.kataSandiVisibility,
+                  onPressed: () {
+                    setState(() {
+                      loginViewModel.kataSandiVisibility();
+                    });
+                  },
                 ),
               ),
               cursorColor: Colors.black,

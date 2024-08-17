@@ -2,16 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:kampusku/models/update_mahasiswa_model.dart';
 import 'package:kampusku/utils/theme/light_and_dark.dart';
+import 'package:kampusku/viewmodels/update_mahasiswa_view_model.dart';
+import 'package:logger/logger.dart';
 
 class UpdateMahasiswa extends StatefulWidget {
-  const UpdateMahasiswa({super.key});
+  final String nama;
+
+  const UpdateMahasiswa({
+    super.key,
+    required this.nama
+  });
 
   @override
   State<UpdateMahasiswa> createState() => _UpdateMahasiswaState();
 }
 
 class _UpdateMahasiswaState extends State<UpdateMahasiswa> {
+  final UpdateMahasiswaViewModel updateMahasiswaViewModel = UpdateMahasiswaViewModel();
+  final logger = Logger();
+
   // Controllers
   TextEditingController _nameController = TextEditingController();
   TextEditingController _phoneController = TextEditingController();
@@ -32,21 +43,6 @@ class _UpdateMahasiswaState extends State<UpdateMahasiswa> {
   DateTime _selectedDate = DateTime.now();
   String _gender = 'Laki-laki';
 
-  @override
-  void dispose() {
-    // Dispose FocusNodes
-    _nameFocusNode.dispose();
-    _phoneFocusNode.dispose();
-    _dobFocusNode.dispose();
-    _addressFocusNode.dispose();
-    _npmFocusNode.dispose();
-    _genderFocusNodeMale.dispose();
-    _genderFocusNodeFemale.dispose();
-    _saveButtonFocusNode.dispose();
-
-    super.dispose();
-  }
-
   void _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -57,7 +53,7 @@ class _UpdateMahasiswaState extends State<UpdateMahasiswa> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
-        _dobController.text = DateFormat('dd/MM/yyyy').format(_selectedDate);
+        _dobController.text = DateFormat('yyyy-MM-dd').format(_selectedDate);
       });
     }
   }
@@ -80,6 +76,135 @@ class _UpdateMahasiswaState extends State<UpdateMahasiswa> {
       _selectedDate = DateTime.now();
       _gender = 'Laki-laki';
     });
+  }
+
+  Future<void> fetchData() async {
+    try {
+      final result = await updateMahasiswaViewModel.getDataMahasiswa();
+      Map<String, dynamic> responseBody = result['responseBody'];
+      int statusCode = result['statusCode'];
+
+      if (statusCode == 200) {
+        // Parsing data dari responseBody
+        final dataJson = responseBody['data'];
+        final Data data = Data(
+          nama: dataJson['nama'],
+          nomer_handphone: dataJson['nomer_handphone'],
+          tanggal_lahir: dataJson['tanggal_lahir'],
+          jenis_kelamin: dataJson['jenis_kelamin'],
+          alamat: dataJson['alamat'],
+          npm: dataJson['npm'],
+        );
+
+        // Mengupdate model dengan data dari responseBody
+        updateMahasiswaViewModel.updateMahasiswaModel.timeStamp = responseBody['timestamp'];
+        updateMahasiswaViewModel.updateMahasiswaModel.status = responseBody['status'];
+        updateMahasiswaViewModel.updateMahasiswaModel.message = responseBody['message'];
+        updateMahasiswaViewModel.updateMahasiswaModel.data = [data];
+        _nameController.text = updateMahasiswaViewModel.updateMahasiswaModel.data[0].nama;
+        _phoneController.text = updateMahasiswaViewModel.updateMahasiswaModel.data[0].nomer_handphone;
+        _dobController.text = updateMahasiswaViewModel.updateMahasiswaModel.data[0].tanggal_lahir;
+        if(updateMahasiswaViewModel.updateMahasiswaModel.data[0].jenis_kelamin == 'Laki-laki') {
+          _gender = updateMahasiswaViewModel.updateMahasiswaModel.data[0].jenis_kelamin;
+          setState(() {});
+        } else {
+          _gender = updateMahasiswaViewModel.updateMahasiswaModel.data[0].jenis_kelamin;
+          setState(() {});
+        }
+        _addressController.text = updateMahasiswaViewModel.updateMahasiswaModel.data[0].alamat;
+        _npmController.text = updateMahasiswaViewModel.updateMahasiswaModel.data[0].npm;
+      } else {
+        updateMahasiswaViewModel.updateMahasiswaModel.timeStamp = responseBody['timestamp'];
+        updateMahasiswaViewModel.updateMahasiswaModel.status = responseBody['status'];
+        updateMahasiswaViewModel.updateMahasiswaModel.message = responseBody['message'];
+
+        if(updateMahasiswaViewModel.updateMahasiswaModel.message == "SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!") {
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(
+                    "INFROMASI",
+                    style: GoogleFonts.poppins(
+                        textStyle: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                    textAlign: TextAlign.center,
+                  ),
+                  content: Text(
+                    updateMahasiswaViewModel.updateMahasiswaModel.message,
+                    style: GoogleFonts.poppins(
+                      textStyle: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'OK',
+                        style: GoogleFonts.poppins(
+                            textStyle: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: LightAndDarkMode.primaryColor(context)
+                            )
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          }
+        } else {
+          throw Exception('Error selain 403 dengan message Username Atau Password salah silahkan coba lagi !!!');
+        }
+      }
+    } catch (error) {
+      logger.e(error);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            key: const Key('AlertGetApiKey'),
+            title: const Center(
+              child: Text(
+                "Perhatian",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            content: const Text(
+              'SERVER MENGALAMI GANGGUAN, SILAHKAN COBA LAGI NANTI !!!',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.poppins(
+                    textStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: LightAndDarkMode.primaryColor(context),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   void _showConfirmDialog() {
@@ -110,235 +235,280 @@ class _UpdateMahasiswaState extends State<UpdateMahasiswa> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    updateMahasiswaViewModel.updateMahasiswaModel.namaKirim = widget.nama;
+    fetchData();
+  }
+
+  @override
+  void dispose() {
+    // Dispose FocusNodes
+    _nameFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _dobFocusNode.dispose();
+    _addressFocusNode.dispose();
+    _npmFocusNode.dispose();
+    _genderFocusNodeMale.dispose();
+    _genderFocusNodeFemale.dispose();
+    _saveButtonFocusNode.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Update Mahasiswa',
-          style: GoogleFonts.poppins(
-            textStyle: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.normal,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        backgroundColor: LightAndDarkMode.primaryColor(context),
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-          ),
-          onPressed: () {
+    return PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
             Navigator.of(context).pop();
-          },
-        ),
-      ),
-      body: GestureDetector(
-        onTap: () {
-          FocusScopeNode currentFocus = FocusScope.of(context);
-          if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
-            currentFocus.unfocus();
           }
         },
-        child: SingleChildScrollView(
-          child: Center(
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.05),
-                  child: _buildTextField(
-                    label: 'Nama',
-                    icon: Icons.person,
-                    controller: _nameController,
-                    focusNode: _nameFocusNode,
-                    inputType: TextInputType.text,
-                    onEditingComplete: () => FocusScope.of(context).requestFocus(_phoneFocusNode),
-                    style: GoogleFonts.poppins(
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.normal,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'Update Mahasiswa',
+              style: GoogleFonts.poppins(
+                textStyle: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.white,
                 ),
-                _buildTextField(
-                  label: 'No.telp',
-                  icon: Icons.phone,
-                  controller: _phoneController,
-                  focusNode: _phoneFocusNode,
-                  inputType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onEditingComplete: () => FocusScope.of(context).requestFocus(_dobFocusNode),
-                  style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                _buildTextField(
-                  label: 'Tanggal Lahir',
-                  icon: Icons.calendar_today,
-                  controller: _dobController,
-                  focusNode: _dobFocusNode,
-                  inputType: TextInputType.text,
-                  onTap: () => _selectDate(context),
-                  readOnly: true,
-                  onEditingComplete: () => FocusScope.of(context).requestFocus(_genderFocusNodeMale),
-                  style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(left: 10),
-                        child: Icon(Icons.transgender),
-                      ),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: ListTile(
-                                contentPadding: EdgeInsets.symmetric(horizontal: 5),
-                                title: Text(
-                                  'Laki-laki',
-                                  style: GoogleFonts.poppins(
-                                    textStyle: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.normal,
-                                      color: LightAndDarkMode.textColor1(context),
-                                    ),
-                                  ),
-                                ),
-                                leading: Radio<String>(
-                                  value: 'Laki-laki',
-                                  groupValue: _gender,
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      _gender = value!;
-                                    });
-                                  },
-                                ),
-                                focusNode: _genderFocusNodeMale,
-                                onFocusChange: (hasFocus) {
-                                  if (!hasFocus) {
-                                    FocusScope.of(context).requestFocus(_genderFocusNodeFemale);
-                                  }
-                                },
-                              ),
-                            ),
-                            Expanded(
-                              child: ListTile(
-                                contentPadding: EdgeInsets.symmetric(horizontal: 5),
-                                title: Text(
-                                  'Perempuan',
-                                  style: GoogleFonts.poppins(
-                                    textStyle: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.normal,
-                                      color: LightAndDarkMode.textColor1(context),
-                                    ),
-                                  ),
-                                ),
-                                leading: Radio<String>(
-                                  value: 'Perempuan',
-                                  groupValue: _gender,
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      _gender = value!;
-                                    });
-                                  },
-                                ),
-                                focusNode: _genderFocusNodeFemale,
-                                onFocusChange: (hasFocus) {
-                                  if (!hasFocus) {
-                                    FocusScope.of(context).requestFocus(_saveButtonFocusNode);
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildTextField(
-                  label: 'Alamat',
-                  icon: Icons.home,
-                  controller: _addressController,
-                  focusNode: _addressFocusNode,
-                  inputType: TextInputType.text,
-                  onEditingComplete: () => FocusScope.of(context).requestFocus(_npmFocusNode),
-                  style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                _buildTextField(
-                  label: 'NPM',
-                  icon: Icons.confirmation_number,
-                  controller: _npmController,
-                  focusNode: _npmFocusNode,
-                  inputType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onEditingComplete: () => FocusScope.of(context).requestFocus(_saveButtonFocusNode),
-                  style: GoogleFonts.poppins(
-                    textStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  decoration: BoxDecoration(
-                    color: _isFormValid()
-                        ? LightAndDarkMode.primaryColor(context)
-                        : Colors.grey,
-                  ),
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                      ),
-                    ),
-                    onPressed: _isFormValid() ? _showConfirmDialog : null,
-                    child: Text(
-                      'Simpan',
-                      style: GoogleFonts.poppins(
-                        textStyle: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _isFormValid() ? LightAndDarkMode.textColor2(context) : Colors.blueGrey,
-                        ),
-                      ),
-                    ),
-                    focusNode: _saveButtonFocusNode,
-                  ),
-                ),
-              ],
+              ),
             ),
+            backgroundColor: LightAndDarkMode.primaryColor(context),
+            centerTitle: true,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ),
+          body: FutureBuilder(
+              future: Future.delayed(Duration(milliseconds: 1500), () => fetchData()),
+              builder: (context, snapshot) {
+                if(snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(),
+                  );
+                } else if(snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                } else {
+                  return GestureDetector(
+                    onTap: () {
+                      FocusScopeNode currentFocus = FocusScope.of(context);
+                      if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+                        currentFocus.unfocus();
+                      }
+                    },
+                    child: SingleChildScrollView(
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.05),
+                                child: _buildTextField(
+                                  label: 'Nama',
+                                  icon: Icons.person,
+                                  controller: _nameController,
+                                  focusNode: _nameFocusNode,
+                                  inputType: TextInputType.text,
+                                  onEditingComplete: () => FocusScope.of(context).requestFocus(_phoneFocusNode),
+                                  style: GoogleFonts.poppins(
+                                    textStyle: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.normal,
+                                      color: LightAndDarkMode.textColor1(context),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _buildTextField(
+                                label: 'No.telp',
+                                icon: Icons.phone,
+                                controller: _phoneController,
+                                focusNode: _phoneFocusNode,
+                                inputType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                onEditingComplete: () => FocusScope.of(context).requestFocus(_dobFocusNode),
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.normal,
+                                    color: LightAndDarkMode.textColor1(context),
+                                  ),
+                                ),
+                              ),
+                              _buildTextField(
+                                label: 'Tanggal Lahir',
+                                icon: Icons.calendar_today,
+                                controller: _dobController,
+                                focusNode: _dobFocusNode,
+                                inputType: TextInputType.text,
+                                onTap: () => _selectDate(context),
+                                readOnly: true,
+                                onEditingComplete: () => FocusScope.of(context).requestFocus(_genderFocusNodeMale),
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.normal,
+                                    color: LightAndDarkMode.textColor1(context),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: MediaQuery.of(context).size.width * 0.9,
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.only(left: 10),
+                                      child: Icon(Icons.transgender),
+                                    ),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: ListTile(
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 5),
+                                              title: Text(
+                                                'Laki-laki',
+                                                style: GoogleFonts.poppins(
+                                                  textStyle: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.normal,
+                                                    color: LightAndDarkMode.textColor1(context),
+                                                  ),
+                                                ),
+                                              ),
+                                              leading: Radio<String>(
+                                                value: 'Laki-laki',
+                                                groupValue: _gender,
+                                                onChanged: (String? value) {
+                                                  setState(() {
+                                                    _gender = value!;
+                                                  });
+                                                },
+                                              ),
+                                              focusNode: _genderFocusNodeMale,
+                                              onFocusChange: (hasFocus) {
+                                                if (!hasFocus) {
+                                                  FocusScope.of(context).requestFocus(_genderFocusNodeFemale);
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: ListTile(
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 5),
+                                              title: Text(
+                                                'Perempuan',
+                                                style: GoogleFonts.poppins(
+                                                  textStyle: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.normal,
+                                                    color: LightAndDarkMode.textColor1(context),
+                                                  ),
+                                                ),
+                                              ),
+                                              leading: Radio<String>(
+                                                value: 'Perempuan',
+                                                groupValue: _gender,
+                                                onChanged: (String? value) {
+                                                  setState(() {
+                                                    _gender = value!;
+                                                  });
+                                                },
+                                              ),
+                                              focusNode: _genderFocusNodeFemale,
+                                              onFocusChange: (hasFocus) {
+                                                if (!hasFocus) {
+                                                  FocusScope.of(context).requestFocus(_saveButtonFocusNode);
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              _buildTextField(
+                                label: 'Alamat',
+                                icon: Icons.home,
+                                controller: _addressController,
+                                focusNode: _addressFocusNode,
+                                inputType: TextInputType.text,
+                                onEditingComplete: () => FocusScope.of(context).requestFocus(_npmFocusNode),
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.normal,
+                                    color: LightAndDarkMode.textColor1(context),
+                                  ),
+                                ),
+                              ),
+                              _buildTextField(
+                                label: 'NPM',
+                                icon: Icons.confirmation_number,
+                                controller: _npmController,
+                                focusNode: _npmFocusNode,
+                                inputType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                onEditingComplete: () => FocusScope.of(context).requestFocus(_saveButtonFocusNode),
+                                style: GoogleFonts.poppins(
+                                  textStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.normal,
+                                    color: LightAndDarkMode.textColor1(context),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 20),
+                              Container(
+                                width: MediaQuery.of(context).size.width * 0.9,
+                                decoration: BoxDecoration(
+                                  color: _isFormValid()
+                                      ? LightAndDarkMode.primaryColor(context)
+                                      : Colors.grey,
+                                ),
+                                child: TextButton(
+                                  style: TextButton.styleFrom(
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.zero,
+                                    ),
+                                  ),
+                                  onPressed: _isFormValid() ? _showConfirmDialog : null,
+                                  child: Text(
+                                    'Simpan',
+                                    style: GoogleFonts.poppins(
+                                      textStyle: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: _isFormValid() ? LightAndDarkMode.textColor2(context) : Colors.blueGrey,
+                                      ),
+                                    ),
+                                  ),
+                                  focusNode: _saveButtonFocusNode,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                    ),
+                  );
+                }
+              }
           )
         ),
-      ),
     );
   }
 

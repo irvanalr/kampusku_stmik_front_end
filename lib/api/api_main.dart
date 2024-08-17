@@ -37,7 +37,7 @@ class ApiMain implements ApiServices {
   }
 
   @override
-  Future<http.Response> InputMahasiswa(String token, String nama, String nomer_telephone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async{
+  Future<http.Response> InputMahasiswa(String token, String nama, String nomer_handphone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async{
     return await http.post(
       Uri.parse('$baseUrl/sessions/input-mahasiswa'),
       headers: <String, String>{
@@ -48,7 +48,7 @@ class ApiMain implements ApiServices {
       },
       body: jsonEncode(<String, String>{
         "nama": nama,
-        "nomor_telephone": nomer_telephone,
+        "nomer_handphone": nomer_handphone,
         "tanggal_lahir": tanggal_lahir,
         "jenis_kelamin" : jenis_kelamin,
         "alamat" : alamat,
@@ -58,9 +58,9 @@ class ApiMain implements ApiServices {
   }
 
   @override
-  Future<http.Response> UpdateMahasiswa(String token, String name, String nama, String nomer_telephone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async {
+  Future<http.Response> UpdateMahasiswa(String token, String nameParam, String name, String nama, String nomer_telephone, String tanggal_lahir, String jenis_kelamin, String alamat, String npm) async {
     return await http.put(
-      Uri.parse('$baseUrl/sessions/mahasiswa/$name'),
+      Uri.parse('$baseUrl/sessions/mahasiswa/$nameParam'),
       headers: <String, String>{
         'mobile-app': 'mobile-application',
         'Content-Type': 'application/json',
@@ -79,9 +79,9 @@ class ApiMain implements ApiServices {
   }
 
   @override
-  Future<http.Response> InformasiMahasiswa(String token) async {
+  Future<http.Response> InformasiMahasiswa(String token, String nama) async {
     return await http.get(
-        Uri.parse('$baseUrl/sessions/get-mahasiswa'),
+        Uri.parse('$baseUrl/sessions/get-mahasiswa/${nama}'),
         headers: <String, String>{
           'mobile-app': 'mobile-application',
           'Content-Type': 'application/json',
